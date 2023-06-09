@@ -7,7 +7,7 @@ pub mod stack;
 pub mod utils;
 
 mod param;
-pub use param::Param;
+pub use param::{Param, ParamRef, ParamMut};
 mod map;
 pub use map::MapTargetService;
 
