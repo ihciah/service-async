@@ -12,6 +12,11 @@ use service_async::{
     MakeService, Param, Service,
 };
 
+#[cfg(unix)]
+use monoio::main as main_macro;
+#[cfg(not(unix))]
+use tokio::main as main_macro;
+
 // ===== Svc*(impl Service) and Svc*Factory(impl NewService) =====
 
 struct SvcA {
@@ -172,6 +177,14 @@ impl<T> SvcC<T> {
     fn layer<C>() -> impl FactoryLayer<C, T, Factory = Self> {
         layer_fn(|_: &C, inner| SvcC { inner })
     }
+
+    fn opt_layer<C>(enabled: bool) -> Option<impl FactoryLayer<C, T, Factory = Self>> {
+        if enabled {
+            Some(layer_fn(|_: &C, inner| SvcC { inner }))
+        } else {
+            None
+        }
+    }
 }
 
 // ===== Define Config and impl Param<T> for it =====
@@ -186,13 +199,14 @@ impl Param<InitFlag> for Config {
     }
 }
 
-#[tokio::main]
+#[main_macro]
 async fn main() {
     let config = Config { init_flag: false };
-    let stack = FactoryStack::new(config)
+    let mut stack = FactoryStack::new(config)
         .push(SvcAFactory::layer())
         .push(SvcBFactory::layer())
-        .push(SvcC::layer())
+        // with Either, we can control whether using a layer at runtime
+        .push(SvcC::opt_layer(true))
         .into_inner();
     let svc = stack.make().unwrap();
     svc.call(1).await.unwrap();
@@ -200,10 +214,11 @@ async fn main() {
     svc.call(3).await.unwrap();
 
     let config = Config { init_flag: true };
+    let need_svc_c = false;
     let new_stack = FactoryStack::new(config)
         .push(SvcAFactory::layer())
         .push(SvcBFactory::layer())
-        .push(SvcC::layer())
+        .push(SvcC::opt_layer(false))
         .into_inner();
     let new_svc = new_stack.make_via_ref(Some(&svc)).unwrap();
     new_svc.call(10).await.unwrap();

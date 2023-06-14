@@ -6,7 +6,7 @@ pub struct FactoryStack<C, S> {
 }
 
 impl<C> FactoryStack<C, ()> {
-    pub fn new(config: C) -> Self {
+    pub const fn new(config: C) -> Self {
         FactoryStack { config, inner: () }
     }
 }

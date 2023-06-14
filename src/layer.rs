@@ -23,6 +23,7 @@ where
 {
     type Factory = O;
 
+    #[inline]
     fn layer(&self, config: &C, inner: F) -> Self::Factory {
         (self.f)(config, inner)
     }

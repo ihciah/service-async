@@ -2,12 +2,13 @@
 
 use std::{future::Future, sync::Arc};
 
+pub mod either;
 pub mod layer;
 pub mod stack;
 pub mod utils;
 
 mod param;
-pub use param::{Param, ParamRef, ParamMut};
+pub use param::{Param, ParamMut, ParamRef};
 mod map;
 pub use map::MapTargetService;
 
