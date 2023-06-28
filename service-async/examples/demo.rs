@@ -174,6 +174,7 @@ impl<T> SvcBFactory<T> {
 }
 
 impl<T> SvcC<T> {
+    #[allow(unused)]
     fn layer<C>() -> impl FactoryLayer<C, T, Factory = Self> {
         layer_fn(|_: &C, inner| SvcC { inner })
     }
@@ -202,7 +203,7 @@ impl Param<InitFlag> for Config {
 #[main_macro]
 async fn main() {
     let config = Config { init_flag: false };
-    let mut stack = FactoryStack::new(config)
+    let stack = FactoryStack::new(config)
         .push(SvcAFactory::layer())
         .push(SvcBFactory::layer())
         // with Either, we can control whether using a layer at runtime
@@ -214,7 +215,6 @@ async fn main() {
     svc.call(3).await.unwrap();
 
     let config = Config { init_flag: true };
-    let need_svc_c = false;
     let new_stack = FactoryStack::new(config)
         .push(SvcAFactory::layer())
         .push(SvcBFactory::layer())

@@ -7,7 +7,6 @@ pub mod layer;
 pub mod stack;
 pub mod utils;
 
-mod param;
 pub use param::{
     Param, ParamMaybeMut, ParamMaybeRef, ParamMut, ParamRef, ParamRemove, ParamSet, ParamTake,
 };

@@ -1,0 +1,12 @@
+[package]
+name = "param"
+version = "0.1.0"
+edition = "2021"
+
+authors = ["ChiHai <ihciah@gmail.com>"]
+categories = ["asynchronous"]
+description = "Param-style trait"
+keywords = ["service", "param"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/ihciah/service-async"
