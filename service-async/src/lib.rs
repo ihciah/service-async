@@ -12,6 +12,8 @@ pub use param::{
 };
 mod map;
 pub use map::MapTargetService;
+mod boxed;
+pub use boxed::{BoxService, BoxedService};
 
 pub trait Service<Request> {
     /// Responses given by the service.

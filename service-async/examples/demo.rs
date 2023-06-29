@@ -9,7 +9,7 @@ use std::{
 use service_async::{
     layer::{layer_fn, FactoryLayer},
     stack::FactoryStack,
-    MakeService, Param, Service,
+    BoxService, BoxedService, MakeService, Param, Service,
 };
 
 #[cfg(unix)]
@@ -214,12 +214,21 @@ async fn main() {
     svc.call(2).await.unwrap();
     svc.call(3).await.unwrap();
 
+    // with BoxService, we can erase different types
+    let boxed_svc: BoxedService<usize, (), _> = stack.make().unwrap().into_boxed();
+    boxed_svc.call(1).await.unwrap();
+
     let config = Config { init_flag: true };
     let new_stack = FactoryStack::new(config)
         .push(SvcAFactory::layer())
         .push(SvcBFactory::layer())
         .push(SvcC::opt_layer(false))
         .into_inner();
+    // create new service with new stack and old service
     let new_svc = new_stack.make_via_ref(Some(&svc)).unwrap();
+    new_svc.call(10).await.unwrap();
+
+    // also, BoxService can use it in this way too
+    let new_svc = new_stack.make_via_ref(boxed_svc.downcast_ref()).unwrap();
     new_svc.call(10).await.unwrap();
 }

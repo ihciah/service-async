@@ -13,6 +13,7 @@ impl<C> FactoryStack<C, ()> {
 
 impl<C, F> FactoryStack<C, F> {
     /// Replace inner with a new factory.
+    #[inline]
     pub fn replace<NF>(self, factory: NF) -> FactoryStack<C, NF> {
         FactoryStack {
             config: self.config,
@@ -21,6 +22,7 @@ impl<C, F> FactoryStack<C, F> {
     }
 
     /// Push a new factory layer.
+    #[inline]
     pub fn push<L>(self, layer: L) -> FactoryStack<C, L::Factory>
     where
         L: FactoryLayer<C, F>,
@@ -33,6 +35,7 @@ impl<C, F> FactoryStack<C, F> {
     }
 
     /// Push a new factory of service to map the request type.
+    #[inline]
     pub fn push_map_target<M: Clone>(self, f: M) -> FactoryStack<C, MapTargetService<F, M>> {
         FactoryStack {
             config: self.config,
@@ -44,6 +47,7 @@ impl<C, F> FactoryStack<C, F> {
     }
 
     /// Check if the stack is a factory of Service<R>.
+    #[inline]
     pub fn check_make_svc<R>(self) -> Self
     where
         F: MakeService,
@@ -53,11 +57,13 @@ impl<C, F> FactoryStack<C, F> {
     }
 
     /// Get the inner factory.
+    #[inline]
     pub fn into_inner(self) -> F {
         self.inner
     }
 
     /// Into config and the factory.
+    #[inline]
     pub fn into_parts(self) -> (C, F) {
         (self.config, self.inner)
     }
@@ -68,6 +74,7 @@ where
     F: MakeService,
 {
     /// Make a service.
+    #[inline]
     pub fn make(&self) -> Result<F::Service, F::Error> {
         self.inner.make()
     }

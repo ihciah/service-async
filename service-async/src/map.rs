@@ -13,6 +13,8 @@ where
     F: Fn(T) -> U,
 {
     type Target = U;
+
+    #[inline]
     fn map_target(&self, t: T) -> U {
         (self)(t)
     }
@@ -37,6 +39,7 @@ where
         Self: 'cx,
         R: 'cx;
 
+    #[inline]
     fn call(&self, req: R) -> Self::Future<'_> {
         let req = self.f.map_target(req);
         self.inner.call(req)
