@@ -13,7 +13,7 @@ pub use param::{
 mod map;
 pub use map::MapTargetService;
 mod boxed;
-pub use boxed::{BoxService, BoxedService};
+pub use boxed::{BoxService, BoxServiceFactory, BoxedService};
 
 pub trait Service<Request> {
     /// Responses given by the service.
@@ -56,3 +56,6 @@ impl<T: MakeService> MakeService for Arc<T> {
         self.as_ref().make_via_ref(old)
     }
 }
+
+pub type BoxedMakeService<Req, Resp, SE, ME> =
+    Box<dyn MakeService<Service = BoxedService<Req, Resp, SE>, Error = ME>>;

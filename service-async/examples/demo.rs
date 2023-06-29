@@ -9,7 +9,7 @@ use std::{
 use service_async::{
     layer::{layer_fn, FactoryLayer},
     stack::FactoryStack,
-    BoxService, BoxedService, MakeService, Param, Service,
+    BoxedMakeService, BoxedService, MakeService, Param, Service,
 };
 
 #[cfg(unix)]
@@ -174,7 +174,6 @@ impl<T> SvcBFactory<T> {
 }
 
 impl<T> SvcC<T> {
-    #[allow(unused)]
     fn layer<C>() -> impl FactoryLayer<C, T, Factory = Self> {
         layer_fn(|_: &C, inner| SvcC { inner })
     }
@@ -189,7 +188,7 @@ impl<T> SvcC<T> {
 }
 
 // ===== Define Config and impl Param<T> for it =====
-
+#[derive(Clone, Copy)]
 struct Config {
     init_flag: bool,
 }
@@ -207,15 +206,14 @@ async fn main() {
         .push(SvcAFactory::layer())
         .push(SvcBFactory::layer())
         // with Either, we can control whether using a layer at runtime
-        .push(SvcC::opt_layer(true))
-        .into_inner();
+        .push(SvcC::opt_layer(true));
     let svc = stack.make().unwrap();
     svc.call(1).await.unwrap();
     svc.call(2).await.unwrap();
     svc.call(3).await.unwrap();
 
     // with BoxService, we can erase different types
-    let boxed_svc: BoxedService<usize, (), _> = stack.make().unwrap().into_boxed();
+    let boxed_svc: BoxedService<usize, (), _> = stack.push_boxed_service().make().unwrap();
     boxed_svc.call(1).await.unwrap();
 
     let config = Config { init_flag: true };
@@ -231,4 +229,23 @@ async fn main() {
     // also, BoxService can use it in this way too
     let new_svc = new_stack.make_via_ref(boxed_svc.downcast_ref()).unwrap();
     new_svc.call(10).await.unwrap();
+
+    // to make it more flexible, we can even make the factory a boxed type.
+    // so we can insert different layers and get a same type.
+    #[allow(unused_assignments)]
+    let mut fac: BoxedMakeService<usize, (), _, _> = FactoryStack::new(config)
+        .push(SvcAFactory::layer())
+        .push(SvcBFactory::layer())
+        .push_boxed_service()
+        .push_boxed_factory()
+        .into_inner();
+    fac = FactoryStack::new(config)
+        .push(SvcAFactory::layer())
+        .push(SvcBFactory::layer())
+        .push(SvcC::layer())
+        .push_boxed_service()
+        .push_boxed_factory()
+        .into_inner();
+    let svc = fac.make().unwrap();
+    svc.call(1).await.unwrap();
 }

@@ -1,8 +1,11 @@
-use std::any::{Any, TypeId};
+use std::{
+    any::{Any, TypeId},
+    marker::PhantomData,
+};
 
 pub use futures_util::future::LocalBoxFuture;
 
-use crate::Service;
+use crate::{MakeService, Service};
 
 pub struct BoxedService<Request, Response, E> {
     svc: *const (),
@@ -98,4 +101,48 @@ where
 
 unsafe fn drop<S>(raw: *const ()) {
     std::ptr::drop_in_place(raw as *mut S);
+}
+
+pub struct BoxServiceFactory<F, Req>
+where
+    F: MakeService,
+    F::Service: Service<Req>,
+{
+    pub inner: F,
+    _marker: PhantomData<Req>,
+}
+
+impl<F, Req> BoxServiceFactory<F, Req>
+where
+    F: MakeService,
+    F::Service: Service<Req>,
+{
+    pub fn new(inner: F) -> Self {
+        BoxServiceFactory {
+            inner,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<F, Req> MakeService for BoxServiceFactory<F, Req>
+where
+    F: MakeService,
+    F::Service: Service<Req> + 'static,
+    Req: 'static,
+{
+    type Service = BoxedService<
+        Req,
+        <F::Service as Service<Req>>::Response,
+        <F::Service as Service<Req>>::Error,
+    >;
+    type Error = F::Error;
+
+    fn make_via_ref(&self, old: Option<&Self::Service>) -> Result<Self::Service, Self::Error> {
+        let svc = match old {
+            Some(inner) => self.inner.make_via_ref(inner.downcast_ref())?,
+            None => self.inner.make()?,
+        };
+        Ok(svc.into_boxed())
+    }
 }
