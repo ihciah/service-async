@@ -15,20 +15,31 @@ pub use map::MapTargetService;
 mod boxed;
 pub use boxed::{BoxService, BoxServiceFactory, BoxedService};
 
-pub trait Service<Request> {
-    /// Responses given by the service.
+// pub trait Service<Request> {
+//     /// Responses given by the service.
+//     type Response;
+//     /// Errors produced by the service.
+//     type Error;
+
+//     /// The future response value.
+//     type Future<'cx>: Future<Output = Result<Self::Response, Self::Error>>
+//     where
+//         Self: 'cx,
+//         Request: 'cx;
+
+//     /// Process the request and return the response asynchronously.
+//     fn call(&self, req: Request) -> Self::Future<'_>;
+// }
+
+use async_trait::async_trait;
+
+#[async_trait]
+pub trait Service<Request>: Sync + Send {
     type Response;
-    /// Errors produced by the service.
+    //     /// Errors produced by the service.
     type Error;
 
-    /// The future response value.
-    type Future<'cx>: Future<Output = Result<Self::Response, Self::Error>>
-    where
-        Self: 'cx,
-        Request: 'cx;
-
-    /// Process the request and return the response asynchronously.
-    fn call(&self, req: Request) -> Self::Future<'_>;
+    async fn call(&self, req: Request) -> Result<Self::Response, Self::Error>;
 }
 
 pub trait MakeService {

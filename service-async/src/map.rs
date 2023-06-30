@@ -1,8 +1,10 @@
 use std::future::Future;
 
+use async_trait::async_trait;
+
 use super::{MakeService, Service};
 
-pub trait MapTarget<T> {
+pub trait MapTarget<T>: Send + Sync {
     type Target;
 
     fn map_target(&self, t: T) -> Self::Target;
@@ -10,7 +12,7 @@ pub trait MapTarget<T> {
 
 impl<F, T, U> MapTarget<T> for F
 where
-    F: Fn(T) -> U,
+    F: Fn(T) -> U + Send + Sync,
 {
     type Target = U;
 
@@ -25,24 +27,22 @@ pub struct MapTargetService<T, F> {
     pub inner: T,
 }
 
+#[async_trait]
 impl<T, F, R> Service<R> for MapTargetService<T, F>
 where
     F: MapTarget<R>,
     T: Service<F::Target>,
+    R: Send + 'static,
+    F::Target: Send,
 {
     type Response = T::Response;
 
     type Error = T::Error;
 
-    type Future<'cx> = impl Future<Output = Result<Self::Response, Self::Error>> + 'cx
-    where
-        Self: 'cx,
-        R: 'cx;
-
     #[inline]
-    fn call(&self, req: R) -> Self::Future<'_> {
+    async fn call(&self, req: R) -> Result<Self::Response, Self::Error> {
         let req = self.f.map_target(req);
-        self.inner.call(req)
+        self.inner.call(req).await
     }
 }
 
