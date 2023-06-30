@@ -6,6 +6,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use async_trait::async_trait;
 use service_async::{
     layer::{layer_fn, FactoryLayer},
     stack::FactoryStack,
@@ -24,21 +25,17 @@ struct SvcA {
     not_pass_flag: bool,
 }
 
+#[async_trait]
 impl Service<()> for SvcA {
     type Response = ();
     type Error = Infallible;
-    type Future<'cx> = impl Future<Output = Result<Self::Response, Self::Error>> + 'cx
-    where
-        Self: 'cx;
 
-    fn call(&self, _req: ()) -> Self::Future<'_> {
-        async move {
-            println!(
-                "SvcA called! pass_flag = {}, not_pass_flag = {}",
-                self.pass_flag, self.not_pass_flag
-            );
-            Ok(())
-        }
+    async fn call(&self, _req: ()) -> Result<Self::Response, Self::Error> {
+        println!(
+            "SvcA called! pass_flag = {}, not_pass_flag = {}",
+            self.pass_flag, self.not_pass_flag
+        );
+        Ok(())
     }
 }
 
@@ -71,24 +68,20 @@ struct SvcB<T> {
     inner: T,
 }
 
+#[async_trait]
 impl<T> Service<usize> for SvcB<T>
 where
     T: Service<(), Error = Infallible>,
 {
     type Response = ();
     type Error = Infallible;
-    type Future<'cx> = impl Future<Output = Result<Self::Response, Self::Error>> + 'cx
-    where
-        Self: 'cx;
 
-    fn call(&self, req: usize) -> Self::Future<'_> {
-        async move {
-            let old = self.counter.fetch_add(req, Ordering::AcqRel);
-            let new = old + req;
-            println!("SvcB called! {old}->{new}");
-            self.inner.call(()).await?;
-            Ok(())
-        }
+    async fn call(&self, req: usize) -> Result<Self::Response, Self::Error> {
+        let old = self.counter.fetch_add(req, Ordering::AcqRel);
+        let new = old + req;
+        println!("SvcB called! {old}->{new}");
+        self.inner.call(()).await?;
+        Ok(())
     }
 }
 
@@ -121,22 +114,19 @@ struct SvcC<T> {
     inner: T,
 }
 
+#[async_trait]
 impl<T, I> Service<I> for SvcC<T>
 where
     T: Service<I, Error = Infallible>,
+    I: Send + 'static,
 {
     type Response = ();
     type Error = Infallible;
-    type Future<'cx> = impl Future<Output = Result<Self::Response, Self::Error>> + 'cx
-    where
-        Self: 'cx, I: 'cx;
 
-    fn call(&self, req: I) -> Self::Future<'_> {
-        async move {
-            println!("SvcC called!");
-            self.inner.call(req).await?;
-            Ok(())
-        }
+    async fn call(&self, req: I) -> Result<Self::Response, Self::Error> {
+        println!("SvcC called!");
+        self.inner.call(req).await?;
+        Ok(())
     }
 }
 
@@ -227,8 +217,8 @@ async fn main() {
     new_svc.call(10).await.unwrap();
 
     // also, BoxService can use it in this way too
-    let new_svc = new_stack.make_via_ref(boxed_svc.downcast_ref()).unwrap();
-    new_svc.call(10).await.unwrap();
+    // let new_svc = new_stack.make_via_ref(Some(boxed_svc)).unwrap();
+    // new_svc.call(10).await.unwrap();
 
     // to make it more flexible, we can even make the factory a boxed type.
     // so we can insert different layers and get a same type.

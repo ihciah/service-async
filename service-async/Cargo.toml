@@ -14,6 +14,7 @@ repository = "https://github.com/ihciah/service-async"
 [dependencies]
 param = { version = "0.1.2", path = "../param" }
 futures-util = "0.3"
+async-trait = "0"
 
 [target.'cfg(unix)'.dev-dependencies]
 monoio = { version = "0.1.5" }

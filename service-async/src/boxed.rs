@@ -3,14 +3,13 @@ use std::{
     marker::PhantomData,
 };
 
+use async_trait::async_trait;
 pub use futures_util::future::LocalBoxFuture;
 
 use crate::{MakeService, Service};
 
 pub struct BoxedService<Request, Response, E> {
-    svc: *const (),
-    type_id: TypeId,
-    vtable: ServiceVtable<Request, Response, E>,
+    svc: Box<dyn Service<Request, Response = Response, Error = E>>,
 }
 
 impl<Request, Response, E> BoxedService<Request, Response, E> {
@@ -19,51 +18,47 @@ impl<Request, Response, E> BoxedService<Request, Response, E> {
         S: Service<Request, Response = Response, Error = E> + 'static,
         Request: 'static,
     {
-        let type_id = s.type_id();
-        let svc = Box::into_raw(Box::new(s)) as *const ();
-        BoxedService {
-            svc,
-            type_id,
-            vtable: ServiceVtable {
-                call: call::<Request, S>,
-                drop: drop::<S>,
-            },
-        }
+        BoxedService { svc: Box::new(s) }
     }
 
-    pub fn downcast_ref<T: Any>(&self) -> Option<&T> {
-        let t = TypeId::of::<T>();
-        if self.type_id == t {
-            Some(unsafe { self.downcast_ref_unchecked() })
-        } else {
-            None
-        }
+    pub fn get_inner<S>(&self) -> &dyn Service<Request, Response = Response, Error = E> {
+        self.svc.as_ref()
     }
 
-    /// # Safety
-    /// If you are sure the inner type is T, you can downcast it.
-    pub unsafe fn downcast_ref_unchecked<T: Any>(&self) -> &T {
-        &*(self.svc as *const () as *const T)
-    }
+    // pub fn downcast_ref<T: Any>(&self) -> Option<&T> {
+    //     let t = TypeId::of::<T>();
+    //     if self.type_id == t {
+    //         Some(unsafe { self.downcast_ref_unchecked() })
+    //     } else {
+    //         None
+    //     }
+    // }
+
+    // /// # Safety
+    // /// If you are sure the inner type is T, you can downcast it.
+    // pub unsafe fn downcast_ref_unchecked<T: Any>(&self) -> &T {
+    //     &*(self.svc as *const () as *const T)
+    // }
 }
 
-impl<Request, Response, E> Drop for BoxedService<Request, Response, E> {
-    #[inline]
-    fn drop(&mut self) {
-        unsafe { (self.vtable.drop)(self.svc) };
-    }
-}
+// impl<Request, Response, E> Drop for BoxedService<Request, Response, E> {
+//     #[inline]
+//     fn drop(&mut self) {
+//         unsafe { (self.vtable.drop)(self.svc) };
+//     }
+// }
 
-impl<Request, Response, E> Service<Request> for BoxedService<Request, Response, E> {
+#[async_trait]
+impl<Request, Response, E> Service<Request> for BoxedService<Request, Response, E>
+where
+    Request: Send,
+{
     type Response = Response;
     type Error = E;
-    type Future<'cx> = LocalBoxFuture<'cx, Result<Response, E>>
-    where
-        Self: 'cx, Request: 'cx;
 
     #[inline]
-    fn call(&self, req: Request) -> Self::Future<'_> {
-        unsafe { (self.vtable.call)(self.svc, req) }
+    async fn call(&self, req: Request) -> Result<Self::Response, Self::Error> {
+        self.svc.call(req).await
     }
 }
 
@@ -140,7 +135,7 @@ where
 
     fn make_via_ref(&self, old: Option<&Self::Service>) -> Result<Self::Service, Self::Error> {
         let svc = match old {
-            Some(inner) => self.inner.make_via_ref(inner.downcast_ref())?,
+            Some(inner) => self.inner.make_via_ref(None)?,
             None => self.inner.make()?,
         };
         Ok(svc.into_boxed())
