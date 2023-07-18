@@ -43,7 +43,7 @@ impl<Request, Response, E> BoxedService<Request, Response, E> {
     /// # Safety
     /// If you are sure the inner type is T, you can downcast it.
     pub unsafe fn downcast_ref_unchecked<T: Any>(&self) -> &T {
-        &*(self.svc as *const () as *const T)
+        &*(self.svc as *const T)
     }
 }
 

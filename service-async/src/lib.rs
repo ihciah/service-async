@@ -57,5 +57,6 @@ impl<T: MakeService> MakeService for Arc<T> {
     }
 }
 
-pub type BoxedMakeService<Req, Resp, SE, ME> =
-    Box<dyn MakeService<Service = BoxedService<Req, Resp, SE>, Error = ME>>;
+pub type BoxedMakeService<S, E> = Box<dyn MakeService<Service = S, Error = E>>;
+pub type BoxedMakeBoxedService<Req, Resp, SE, ME> =
+    BoxedMakeService<BoxedService<Req, Resp, SE>, ME>;

@@ -1,6 +1,7 @@
-use crate::{boxed::BoxServiceFactory, BoxedMakeService, BoxedService};
-
-use super::{layer::FactoryLayer, MakeService, MapTargetService, Service};
+use super::{
+    boxed::BoxServiceFactory, layer::FactoryLayer, BoxedMakeService, MakeService, MapTargetService,
+    Service,
+};
 
 pub struct FactoryStack<C, S> {
     config: C,
@@ -63,11 +64,9 @@ impl<C, F> FactoryStack<C, F> {
 
     /// Push a new factory wrapper to get a fixed type factory.
     #[inline]
-    pub fn push_boxed_factory<Req, Resp, SE, ME>(
-        self,
-    ) -> FactoryStack<C, BoxedMakeService<Req, Resp, SE, ME>>
+    pub fn push_boxed_factory(self) -> FactoryStack<C, BoxedMakeService<F::Service, F::Error>>
     where
-        F: MakeService<Service = BoxedService<Req, Resp, SE>, Error = ME> + 'static,
+        F: MakeService + 'static,
     {
         FactoryStack {
             config: self.config,

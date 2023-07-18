@@ -233,7 +233,7 @@ async fn main() {
     // to make it more flexible, we can even make the factory a boxed type.
     // so we can insert different layers and get a same type.
     #[allow(unused_assignments)]
-    let mut fac: BoxedMakeService<usize, (), _, _> = FactoryStack::new(config)
+    let mut fac: BoxedMakeService<_, _> = FactoryStack::new(config)
         .push(SvcAFactory::layer())
         .push(SvcBFactory::layer())
         .push_boxed_service()
