@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use super::{
-    boxed::BoxServiceFactory, layer::FactoryLayer, BoxedMakeService, MakeService, MapTargetService,
-    Service,
+    boxed::BoxServiceFactory, layer::FactoryLayer, ArcMakeService, BoxedMakeService, MakeService,
+    MapTargetService, Service,
 };
 
 pub struct FactoryStack<C, S> {
@@ -66,11 +68,23 @@ impl<C, F> FactoryStack<C, F> {
     #[inline]
     pub fn push_boxed_factory(self) -> FactoryStack<C, BoxedMakeService<F::Service, F::Error>>
     where
-        F: MakeService + 'static,
+        F: MakeService + Send + Sync + 'static,
     {
         FactoryStack {
             config: self.config,
             inner: Box::new(self.inner),
+        }
+    }
+
+    /// Push a new factory wrapper to get a fixed type factory.
+    #[inline]
+    pub fn push_arc_factory(self) -> FactoryStack<C, ArcMakeService<F::Service, F::Error>>
+    where
+        F: MakeService + Send + Sync + 'static,
+    {
+        FactoryStack {
+            config: self.config,
+            inner: Arc::new(self.inner),
         }
     }
 

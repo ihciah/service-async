@@ -41,7 +41,7 @@ pub trait MakeService {
     }
 }
 
-impl<T: MakeService> MakeService for &T {
+impl<T: MakeService + ?Sized> MakeService for &T {
     type Service = T::Service;
     type Error = T::Error;
     fn make_via_ref(&self, old: Option<&Self::Service>) -> Result<Self::Service, Self::Error> {
@@ -49,7 +49,7 @@ impl<T: MakeService> MakeService for &T {
     }
 }
 
-impl<T: MakeService> MakeService for Arc<T> {
+impl<T: MakeService + ?Sized> MakeService for Arc<T> {
     type Service = T::Service;
     type Error = T::Error;
     fn make_via_ref(&self, old: Option<&Self::Service>) -> Result<Self::Service, Self::Error> {
@@ -57,6 +57,18 @@ impl<T: MakeService> MakeService for Arc<T> {
     }
 }
 
-pub type BoxedMakeService<S, E> = Box<dyn MakeService<Service = S, Error = E>>;
+impl<T: MakeService + ?Sized> MakeService for Box<T> {
+    type Service = T::Service;
+    type Error = T::Error;
+    fn make_via_ref(&self, old: Option<&Self::Service>) -> Result<Self::Service, Self::Error> {
+        self.as_ref().make_via_ref(old)
+    }
+}
+
+pub type BoxedMakeService<S, E> =
+    Box<dyn MakeService<Service = S, Error = E> + Send + Sync + 'static>;
+pub type ArcMakeService<S, E> =
+    Arc<dyn MakeService<Service = S, Error = E> + Send + Sync + 'static>;
 pub type BoxedMakeBoxedService<Req, Resp, SE, ME> =
     BoxedMakeService<BoxedService<Req, Resp, SE>, ME>;
+pub type ArcMakeBoxedService<Req, Resp, SE, ME> = ArcMakeService<BoxedService<Req, Resp, SE>, ME>;

@@ -112,6 +112,20 @@ where
     _marker: PhantomData<Req>,
 }
 
+unsafe impl<F: Send, Req> Send for BoxServiceFactory<F, Req>
+where
+    F: MakeService,
+    F::Service: Service<Req>,
+{
+}
+
+unsafe impl<F: Sync, Req> Sync for BoxServiceFactory<F, Req>
+where
+    F: MakeService,
+    F::Service: Service<Req>,
+{
+}
+
 impl<F, Req> BoxServiceFactory<F, Req>
 where
     F: MakeService,
