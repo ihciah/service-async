@@ -5,8 +5,6 @@ use std::{
     pin::Pin,
 };
 
-// pub use futures_util::future::LocalBoxFuture;
-
 use crate::{MakeService, Service};
 
 pub struct BoxedService<Request, Response, E> {
@@ -83,14 +81,11 @@ where
 type BoxedFuture<T, E> = Pin<Box<dyn Future<Output = Result<T, E>>>>;
 
 struct ServiceVtable<T, U, E> {
-    call: unsafe fn(raw: *const (), req: T) -> BoxedFuture<U,E>,
+    call: unsafe fn(raw: *const (), req: T) -> BoxedFuture<U, E>,
     drop: unsafe fn(raw: *const ()),
 }
 
-unsafe fn call<R, S>(
-    svc: *const (),
-    req: R,
-) -> BoxedFuture<S::Response, S::Error>
+unsafe fn call<R, S>(svc: *const (), req: R) -> BoxedFuture<S::Response, S::Error>
 where
     R: 'static,
     S: Service<R> + 'static,
