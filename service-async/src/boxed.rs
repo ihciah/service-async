@@ -1,9 +1,11 @@
 use std::{
     any::{Any, TypeId},
+    future::Future,
     marker::PhantomData,
+    pin::Pin,
 };
 
-pub use futures_util::future::LocalBoxFuture;
+// pub use futures_util::future::LocalBoxFuture;
 
 use crate::{MakeService, Service};
 
@@ -57,13 +59,10 @@ impl<Request, Response, E> Drop for BoxedService<Request, Response, E> {
 impl<Request, Response, E> Service<Request> for BoxedService<Request, Response, E> {
     type Response = Response;
     type Error = E;
-    type Future<'cx> = LocalBoxFuture<'cx, Result<Response, E>>
-    where
-        Self: 'cx, Request: 'cx;
 
     #[inline]
-    fn call(&self, req: Request) -> Self::Future<'_> {
-        unsafe { (self.vtable.call)(self.svc, req) }
+    async fn call(&self, req: Request) -> Result<Self::Response, Self::Error> {
+        unsafe { (self.vtable.call)(self.svc, req) }.await
     }
 }
 
@@ -82,14 +81,14 @@ where
 }
 
 struct ServiceVtable<T, U, E> {
-    call: unsafe fn(raw: *const (), req: T) -> LocalBoxFuture<'static, Result<U, E>>,
+    call: unsafe fn(raw: *const (), req: T) -> Pin<Box<dyn Future<Output = Result<U, E>>>>,
     drop: unsafe fn(raw: *const ()),
 }
 
 unsafe fn call<R, S>(
     svc: *const (),
     req: R,
-) -> LocalBoxFuture<'static, Result<S::Response, S::Error>>
+) -> Pin<Box<dyn Future<Output = Result<S::Response, S::Error>>>>
 where
     R: 'static,
     S: Service<R> + 'static,

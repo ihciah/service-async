@@ -1,5 +1,3 @@
-#![feature(impl_trait_in_assoc_type)]
-
 use std::{future::Future, sync::Arc};
 
 pub mod either;
@@ -21,14 +19,8 @@ pub trait Service<Request> {
     /// Errors produced by the service.
     type Error;
 
-    /// The future response value.
-    type Future<'cx>: Future<Output = Result<Self::Response, Self::Error>>
-    where
-        Self: 'cx,
-        Request: 'cx;
-
     /// Process the request and return the response asynchronously.
-    fn call(&self, req: Request) -> Self::Future<'_>;
+    fn call(&self, req: Request) -> impl Future<Output = Result<Self::Response, Self::Error>>;
 }
 
 pub trait MakeService {
