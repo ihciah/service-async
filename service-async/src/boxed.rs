@@ -80,15 +80,17 @@ where
     }
 }
 
+type BoxedFuture<T, E> = Pin<Box<dyn Future<Output = Result<T, E>>>>;
+
 struct ServiceVtable<T, U, E> {
-    call: unsafe fn(raw: *const (), req: T) -> Pin<Box<dyn Future<Output = Result<U, E>>>>,
+    call: unsafe fn(raw: *const (), req: T) -> BoxedFuture<U,E>,
     drop: unsafe fn(raw: *const ()),
 }
 
 unsafe fn call<R, S>(
     svc: *const (),
     req: R,
-) -> Pin<Box<dyn Future<Output = Result<S::Response, S::Error>>>>
+) -> BoxedFuture<S::Response, S::Error>
 where
     R: 'static,
     S: Service<R> + 'static,
