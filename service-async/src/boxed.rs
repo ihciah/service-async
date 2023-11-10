@@ -59,8 +59,8 @@ impl<Request, Response, E> Service<Request> for BoxedService<Request, Response, 
     type Error = E;
 
     #[inline]
-    async fn call(&self, req: Request) -> Result<Self::Response, Self::Error> {
-        unsafe { (self.vtable.call)(self.svc, req) }.await
+    fn call(&self, req: Request) -> impl Future<Output = Result<Self::Response, Self::Error>> {
+        unsafe { (self.vtable.call)(self.svc, req) }
     }
 }
 
@@ -78,14 +78,14 @@ where
     }
 }
 
-type BoxedFuture<T, E> = Pin<Box<dyn Future<Output = Result<T, E>>>>;
+type LocalStaticBoxedFuture<T, E> = Pin<Box<dyn Future<Output = Result<T, E>> + 'static>>;
 
 struct ServiceVtable<T, U, E> {
-    call: unsafe fn(raw: *const (), req: T) -> BoxedFuture<U, E>,
+    call: unsafe fn(raw: *const (), req: T) -> LocalStaticBoxedFuture<U, E>,
     drop: unsafe fn(raw: *const ()),
 }
 
-unsafe fn call<R, S>(svc: *const (), req: R) -> BoxedFuture<S::Response, S::Error>
+unsafe fn call<R, S>(svc: *const (), req: R) -> LocalStaticBoxedFuture<S::Response, S::Error>
 where
     R: 'static,
     S: Service<R> + 'static,

@@ -74,10 +74,10 @@ where
     type Error = A::Error;
 
     #[inline]
-    async fn call(&self, req: R) -> Result<Self::Response, Self::Error> {
+    fn call(&self, req: R) -> impl Future<Output = Result<Self::Response, Self::Error>> {
         match self {
-            Either::Left(s) => s.call(req).await,
-            Either::Right(s) => s.call(req).await,
+            Either::Left(s) => Either::Left(s.call(req)),
+            Either::Right(s) => Either::Right(s.call(req)),
         }
     }
 }

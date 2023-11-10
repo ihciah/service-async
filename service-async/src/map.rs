@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use super::{MakeService, Service};
 
 pub trait MapTarget<T> {
@@ -33,9 +35,9 @@ where
     type Error = T::Error;
 
     #[inline]
-    async fn call(&self, req: R) -> Result<Self::Response, Self::Error> {
+    fn call(&self, req: R) -> impl Future<Output = Result<Self::Response, Self::Error>> {
         let req = self.f.map_target(req);
-        self.inner.call(req).await
+        self.inner.call(req)
     }
 }
 
