@@ -34,13 +34,8 @@ where
 
     type Error = T::Error;
 
-    type Future<'cx> = impl Future<Output = Result<Self::Response, Self::Error>> + 'cx
-    where
-        Self: 'cx,
-        R: 'cx;
-
     #[inline]
-    fn call(&self, req: R) -> Self::Future<'_> {
+    fn call(&self, req: R) -> impl Future<Output = Result<Self::Response, Self::Error>> {
         let req = self.f.map_target(req);
         self.inner.call(req)
     }

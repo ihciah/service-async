@@ -72,13 +72,9 @@ where
 {
     type Response = A::Response;
     type Error = A::Error;
-    type Future<'cx> = Either<A::Future<'cx>, B::Future<'cx>>
-    where
-        Self: 'cx,
-        R: 'cx;
 
     #[inline]
-    fn call(&self, req: R) -> Self::Future<'_> {
+    fn call(&self, req: R) -> impl Future<Output = Result<Self::Response, Self::Error>> {
         match self {
             Either::Left(s) => Either::Left(s.call(req)),
             Either::Right(s) => Either::Right(s.call(req)),

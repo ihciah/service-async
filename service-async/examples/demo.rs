@@ -1,8 +1,5 @@
-#![feature(impl_trait_in_assoc_type)]
-
 use std::{
     convert::Infallible,
-    future::Future,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -27,18 +24,13 @@ struct SvcA {
 impl Service<()> for SvcA {
     type Response = ();
     type Error = Infallible;
-    type Future<'cx> = impl Future<Output = Result<Self::Response, Self::Error>> + 'cx
-    where
-        Self: 'cx;
 
-    fn call(&self, _req: ()) -> Self::Future<'_> {
-        async move {
-            println!(
-                "SvcA called! pass_flag = {}, not_pass_flag = {}",
-                self.pass_flag, self.not_pass_flag
-            );
-            Ok(())
-        }
+    async fn call(&self, _req: ()) -> Result<Self::Response, Self::Error> {
+        println!(
+            "SvcA called! pass_flag = {}, not_pass_flag = {}",
+            self.pass_flag, self.not_pass_flag
+        );
+        Ok(())
     }
 }
 
@@ -77,18 +69,13 @@ where
 {
     type Response = ();
     type Error = Infallible;
-    type Future<'cx> = impl Future<Output = Result<Self::Response, Self::Error>> + 'cx
-    where
-        Self: 'cx;
 
-    fn call(&self, req: usize) -> Self::Future<'_> {
-        async move {
-            let old = self.counter.fetch_add(req, Ordering::AcqRel);
-            let new = old + req;
-            println!("SvcB called! {old}->{new}");
-            self.inner.call(()).await?;
-            Ok(())
-        }
+    async fn call(&self, req: usize) -> Result<Self::Response, Self::Error> {
+        let old = self.counter.fetch_add(req, Ordering::AcqRel);
+        let new = old + req;
+        println!("SvcB called! {old}->{new}");
+        self.inner.call(()).await?;
+        Ok(())
     }
 }
 
@@ -127,16 +114,11 @@ where
 {
     type Response = ();
     type Error = Infallible;
-    type Future<'cx> = impl Future<Output = Result<Self::Response, Self::Error>> + 'cx
-    where
-        Self: 'cx, I: 'cx;
 
-    fn call(&self, req: I) -> Self::Future<'_> {
-        async move {
-            println!("SvcC called!");
-            self.inner.call(req).await?;
-            Ok(())
-        }
+    async fn call(&self, req: I) -> Result<Self::Response, Self::Error> {
+        println!("SvcC called!");
+        self.inner.call(req).await?;
+        Ok(())
     }
 }
 
