@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display, future::Future, pin::Pin};
 
-use crate::{layer::FactoryLayer, MakeService, Service};
+use crate::{layer::FactoryLayer, AsyncMakeService, MakeService, Service};
 
 #[derive(Debug, Clone)]
 pub enum Either<A, B> {
@@ -58,6 +58,35 @@ where
             Either::Right(f) => match old.as_ref() {
                 Some(Either::Right(right_svc)) => f.make_via_ref(Some(right_svc)),
                 _ => f.make(),
+            }
+            .map(Either::Right)
+            .map_err(Either::Right),
+        }
+    }
+}
+
+impl<A, B> AsyncMakeService for Either<A, B>
+where
+    A: AsyncMakeService,
+    B: AsyncMakeService,
+{
+    type Service = Either<A::Service, B::Service>;
+    type Error = Either<A::Error, B::Error>;
+
+    async fn make_via_ref(
+        &self,
+        old: Option<&Self::Service>,
+    ) -> Result<Self::Service, Self::Error> {
+        match self {
+            Either::Left(f) => match old.as_ref() {
+                Some(Either::Left(left_svc)) => f.make_via_ref(Some(left_svc)).await,
+                _ => f.make().await,
+            }
+            .map(Either::Left)
+            .map_err(Either::Left),
+            Either::Right(f) => match old.as_ref() {
+                Some(Either::Right(right_svc)) => f.make_via_ref(Some(right_svc)).await,
+                _ => f.make().await,
             }
             .map(Either::Right)
             .map_err(Either::Right),

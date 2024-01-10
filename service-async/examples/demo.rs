@@ -6,7 +6,7 @@ use std::{
 use service_async::{
     layer::{layer_fn, FactoryLayer},
     stack::FactoryStack,
-    BoxedMakeService, BoxedService, MakeService, Param, Service,
+    AsyncMakeService, BoxedMakeService, BoxedService, MakeService, Param, Service,
 };
 
 #[cfg(unix)]
@@ -136,6 +136,21 @@ where
     }
 }
 
+impl<F> AsyncMakeService for SvcC<F>
+where
+    F: MakeService<Error = Infallible>,
+{
+    type Service = SvcC<F::Service>;
+    type Error = Infallible;
+
+    async fn make_via_ref(&self, old: Option<&Self::Service>) -> Result<Self::Service, Infallible> {
+        // We may do some async calls here.
+        Ok(SvcC {
+            inner: self.inner.make_via_ref(old.map(|x| &x.inner))?,
+        })
+    }
+}
+
 // ===== impl layer fn for Factory instead of defining manually =====
 
 impl SvcAFactory {
@@ -184,6 +199,16 @@ impl Param<InitFlag> for Config {
 #[main_macro]
 async fn main() {
     let config = Config { init_flag: false };
+    let stack = FactoryStack::new(config)
+        .push(SvcAFactory::layer())
+        .push(SvcBFactory::layer())
+        // we can also use async make service
+        .push(SvcC::layer());
+    let svc = stack.make_async().await.unwrap();
+    svc.call(1).await.unwrap();
+    svc.call(2).await.unwrap();
+    svc.call(3).await.unwrap();
+
     let stack = FactoryStack::new(config)
         .push(SvcAFactory::layer())
         .push(SvcBFactory::layer())

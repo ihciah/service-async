@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use crate::AsyncMakeServiceWrapper;
+
 pub trait FactoryLayer<C, F> {
     type Factory;
     fn layer(&self, config: &C, inner: F) -> Self::Factory;
@@ -26,5 +28,16 @@ where
     #[inline]
     fn layer(&self, config: &C, inner: F) -> Self::Factory {
         (self.f)(config, inner)
+    }
+}
+
+pub struct LayerAsync;
+
+impl<C, F> FactoryLayer<C, F> for LayerAsync {
+    type Factory = AsyncMakeServiceWrapper<F>;
+
+    #[inline]
+    fn layer(&self, _config: &C, inner: F) -> Self::Factory {
+        AsyncMakeServiceWrapper(inner)
     }
 }

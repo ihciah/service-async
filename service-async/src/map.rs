@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use super::{MakeService, Service};
+use super::{AsyncMakeService, MakeService, Service};
 
 pub trait MapTarget<T> {
     type Target;
@@ -55,6 +55,29 @@ where
             inner: self
                 .inner
                 .make_via_ref(old.map(|o| &o.inner))
+                .map_err(Into::into)?,
+        })
+    }
+}
+
+impl<FAC, F> AsyncMakeService for MapTargetService<FAC, F>
+where
+    FAC: AsyncMakeService,
+    F: Clone,
+{
+    type Service = MapTargetService<FAC::Service, F>;
+    type Error = FAC::Error;
+
+    async fn make_via_ref(
+        &self,
+        old: Option<&Self::Service>,
+    ) -> Result<Self::Service, Self::Error> {
+        Ok(MapTargetService {
+            f: self.f.clone(),
+            inner: self
+                .inner
+                .make_via_ref(old.map(|o| &o.inner))
+                .await
                 .map_err(Into::into)?,
         })
     }

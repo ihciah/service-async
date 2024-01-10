@@ -5,7 +5,7 @@ use std::{
     pin::Pin,
 };
 
-use crate::{MakeService, Service};
+use crate::{AsyncMakeService, MakeService, Service};
 
 pub struct BoxedService<Request, Response, E> {
     svc: *const (),
@@ -99,34 +99,16 @@ unsafe fn drop<S>(raw: *const ()) {
     std::ptr::drop_in_place(raw as *mut S);
 }
 
-pub struct BoxServiceFactory<F, Req>
-where
-    F: MakeService,
-    F::Service: Service<Req>,
-{
+pub struct BoxServiceFactory<F, Req> {
     pub inner: F,
     _marker: PhantomData<Req>,
 }
 
-unsafe impl<F: Send, Req> Send for BoxServiceFactory<F, Req>
-where
-    F: MakeService,
-    F::Service: Service<Req>,
-{
-}
+unsafe impl<F: Send, Req> Send for BoxServiceFactory<F, Req> {}
 
-unsafe impl<F: Sync, Req> Sync for BoxServiceFactory<F, Req>
-where
-    F: MakeService,
-    F::Service: Service<Req>,
-{
-}
+unsafe impl<F: Sync, Req> Sync for BoxServiceFactory<F, Req> {}
 
-impl<F, Req> BoxServiceFactory<F, Req>
-where
-    F: MakeService,
-    F::Service: Service<Req>,
-{
+impl<F, Req> BoxServiceFactory<F, Req> {
     pub fn new(inner: F) -> Self {
         BoxServiceFactory {
             inner,
@@ -152,6 +134,31 @@ where
         let svc = match old {
             Some(inner) => self.inner.make_via_ref(inner.downcast_ref())?,
             None => self.inner.make()?,
+        };
+        Ok(svc.into_boxed())
+    }
+}
+
+impl<F, Req> AsyncMakeService for BoxServiceFactory<F, Req>
+where
+    F: AsyncMakeService,
+    F::Service: Service<Req> + 'static,
+    Req: 'static,
+{
+    type Service = BoxedService<
+        Req,
+        <F::Service as Service<Req>>::Response,
+        <F::Service as Service<Req>>::Error,
+    >;
+    type Error = F::Error;
+
+    async fn make_via_ref(
+        &self,
+        old: Option<&Self::Service>,
+    ) -> Result<Self::Service, Self::Error> {
+        let svc = match old {
+            Some(inner) => self.inner.make_via_ref(inner.downcast_ref()).await?,
+            None => self.inner.make().await?,
         };
         Ok(svc.into_boxed())
     }

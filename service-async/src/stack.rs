@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
+use crate::AsyncMakeServiceWrapper;
+
 use super::{
-    boxed::BoxServiceFactory, layer::FactoryLayer, ArcMakeService, BoxedMakeService, MakeService,
-    MapTargetService, Service,
+    boxed::BoxServiceFactory, layer::FactoryLayer, ArcMakeService, AsyncMakeService,
+    BoxedMakeService, MakeService, MapTargetService, Service,
 };
 
 pub struct FactoryStack<C, S> {
@@ -36,6 +38,19 @@ impl<C, F> FactoryStack<C, F> {
         FactoryStack {
             config: self.config,
             inner,
+        }
+    }
+
+    /// Push a new factory layer.
+    #[inline]
+    pub fn push_async<L>(self, layer: L) -> FactoryStack<C, AsyncMakeServiceWrapper<L::Factory>>
+    where
+        L: FactoryLayer<C, F>,
+    {
+        let inner = layer.layer(&self.config, self.inner);
+        FactoryStack {
+            config: self.config,
+            inner: AsyncMakeServiceWrapper(inner),
         }
     }
 
@@ -98,6 +113,16 @@ impl<C, F> FactoryStack<C, F> {
         self
     }
 
+    /// Check if the stack is an async factory of Service<R>.
+    #[inline]
+    pub fn check_async_make_svc<R>(self) -> Self
+    where
+        F: AsyncMakeService,
+        F::Service: Service<R>,
+    {
+        self
+    }
+
     /// Get the inner factory.
     #[inline]
     pub fn into_inner(self) -> F {
@@ -119,5 +144,16 @@ where
     #[inline]
     pub fn make(&self) -> Result<F::Service, F::Error> {
         self.inner.make()
+    }
+}
+
+impl<C, F> FactoryStack<C, F>
+where
+    F: AsyncMakeService,
+{
+    /// Make a service in async.
+    #[inline]
+    pub async fn make_async(&self) -> Result<F::Service, F::Error> {
+        self.inner.make().await
     }
 }
