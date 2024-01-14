@@ -89,6 +89,7 @@ impl<T: AsyncMakeService + ?Sized> AsyncMakeService for Box<T> {
     }
 }
 
+/// Impl AsyncMakeService where T: MakeService.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AsyncMakeServiceWrapper<T>(pub T);

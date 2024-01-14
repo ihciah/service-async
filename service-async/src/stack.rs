@@ -41,16 +41,13 @@ impl<C, F> FactoryStack<C, F> {
         }
     }
 
-    /// Push a new factory layer.
+    /// Convert the factory to an async factory.
     #[inline]
-    pub fn push_async<L>(self, layer: L) -> FactoryStack<C, AsyncMakeServiceWrapper<L::Factory>>
-    where
-        L: FactoryLayer<C, F>,
-    {
-        let inner = layer.layer(&self.config, self.inner);
+    pub fn into_async(self) -> FactoryStack<C, AsyncMakeServiceWrapper<F>> {
+        let inner = AsyncMakeServiceWrapper(self.inner);
         FactoryStack {
             config: self.config,
-            inner: AsyncMakeServiceWrapper(inner),
+            inner,
         }
     }
 
