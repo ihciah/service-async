@@ -11,7 +11,7 @@ pub use param::{
 mod map;
 pub use map::MapTargetService;
 mod boxed;
-pub use boxed::{BoxService, BoxServiceFactory, BoxedService};
+pub use boxed::{BoxService, BoxServiceFactory, BoxedAsyncMakeService, BoxedService};
 mod make_service;
 pub use make_service::{
     ArcMakeBoxedService, ArcMakeService, AsyncMakeService, AsyncMakeServiceWrapper,

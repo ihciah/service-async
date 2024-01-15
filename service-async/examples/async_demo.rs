@@ -1,11 +1,11 @@
-use std::convert::Infallible;
+use std::{any::Any, convert::Infallible};
 
 #[cfg(unix)]
 use monoio::main as main_macro;
 use service_async::{
     layer::{layer_fn, FactoryLayer},
     stack::FactoryStack,
-    AsyncMakeService, MakeService, Service,
+    AsyncMakeService, BoxedService, MakeService, Service,
 };
 #[cfg(not(unix))]
 use tokio::main as main_macro;
@@ -86,12 +86,14 @@ impl<T> SvcBFactory<T> {
 
 #[main_macro]
 async fn main() {
+    // Demo for normal async make service.
     let stack = FactoryStack::new(())
         .push(SvcAFactory::layer())
         .push(SvcBFactory::layer());
     let svc = stack.make_async().await.unwrap();
     svc.call(()).await.unwrap();
 
+    // Demo for convert make service to async make service.
     let stack = FactoryStack::new(())
         .push(SvcAFactory::layer())
         .check_make_svc()
@@ -99,5 +101,15 @@ async fn main() {
         .check_async_make_svc()
         .push(SvcBFactory::layer());
     let svc = stack.make_async().await.unwrap();
+    svc.call(()).await.unwrap();
+
+    // Demo for convert service type to BoxedService and factory to BoxedAsyncMakeService<S, E>.
+    let stack = FactoryStack::new(())
+        .push(SvcAFactory::layer())
+        .push(SvcBFactory::layer())
+        .into_boxed_service()
+        .into_async_boxed_factory();
+    let svc = stack.make_async().await.unwrap();
+    assert!(svc.type_id() == std::any::TypeId::of::<BoxedService<(), (), Infallible>>());
     svc.call(()).await.unwrap();
 }

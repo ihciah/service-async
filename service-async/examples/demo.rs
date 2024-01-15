@@ -220,7 +220,7 @@ async fn main() {
     svc.call(3).await.unwrap();
 
     // with BoxService, we can erase different types
-    let boxed_svc: BoxedService<usize, (), _> = stack.push_boxed_service().make().unwrap();
+    let boxed_svc: BoxedService<usize, (), _> = stack.into_boxed_service().make().unwrap();
     boxed_svc.call(1).await.unwrap();
 
     let config = Config { init_flag: true };
@@ -243,15 +243,15 @@ async fn main() {
     let mut fac: BoxedMakeService<_, _> = FactoryStack::new(config)
         .push(SvcAFactory::layer())
         .push(SvcBFactory::layer())
-        .push_boxed_service()
-        .push_boxed_factory()
+        .into_boxed_service()
+        .into_boxed_factory()
         .into_inner();
     fac = FactoryStack::new(config)
         .push(SvcAFactory::layer())
         .push(SvcBFactory::layer())
         .push(SvcC::layer())
-        .push_boxed_service()
-        .push_boxed_factory()
+        .into_boxed_service()
+        .into_boxed_factory()
         .into_inner();
     let svc = fac.make().unwrap();
     svc.call(1).await.unwrap();

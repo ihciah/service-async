@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::AsyncMakeServiceWrapper;
+use crate::{AsyncMakeServiceWrapper, BoxedAsyncMakeService};
 
 use super::{
     boxed::BoxServiceFactory, layer::FactoryLayer, ArcMakeService, AsyncMakeService,
@@ -63,22 +63,32 @@ impl<C, F> FactoryStack<C, F> {
         }
     }
 
-    /// Push a new factory of BoxedService.
+    /// Convert the factory to factory of BoxedService.
+    /// Works for MakeService and AsyncMakeService.
     #[inline]
-    pub fn push_boxed_service<Req>(self) -> FactoryStack<C, BoxServiceFactory<F, Req>>
-    where
-        F: MakeService,
-        F::Service: Service<Req>,
-    {
+    pub fn into_boxed_service<Req>(self) -> FactoryStack<C, BoxServiceFactory<F, Req>> {
         FactoryStack {
             config: self.config,
             inner: BoxServiceFactory::new(self.inner),
         }
     }
 
-    /// Push a new factory wrapper to get a fixed type factory.
+    /// Convert the factory to factory of BoxedService.
+    /// Works for MakeService and AsyncMakeService.
+    #[deprecated = "use `into_boxed_service` instead"]
     #[inline]
-    pub fn push_boxed_factory(self) -> FactoryStack<C, BoxedMakeService<F::Service, F::Error>>
+    pub fn push_boxed_service<Req>(self) -> FactoryStack<C, BoxServiceFactory<F, Req>>
+    where
+        F: MakeService,
+        F::Service: Service<Req>,
+    {
+        self.into_boxed_service()
+    }
+
+    /// Convert the factory to a fixed type factory(Box dyn).
+    /// Only works for MakeService.
+    #[inline]
+    pub fn into_boxed_factory(self) -> FactoryStack<C, BoxedMakeService<F::Service, F::Error>>
     where
         F: MakeService + Send + Sync + 'static,
     {
@@ -88,9 +98,37 @@ impl<C, F> FactoryStack<C, F> {
         }
     }
 
-    /// Push a new factory wrapper to get a fixed type factory.
+    /// Convert the factory to a fixed type factory(Box dyn).
+    /// Only works for AsyncMakeService.
     #[inline]
-    pub fn push_arc_factory(self) -> FactoryStack<C, ArcMakeService<F::Service, F::Error>>
+    pub fn into_async_boxed_factory(
+        self,
+    ) -> FactoryStack<C, BoxedAsyncMakeService<F::Service, F::Error>>
+    where
+        F: AsyncMakeService + 'static,
+        F::Service: 'static,
+    {
+        FactoryStack {
+            config: self.config,
+            inner: BoxedAsyncMakeService::new(self.inner),
+        }
+    }
+
+    /// Convert the factory to a fixed type factory(Box dyn).
+    /// Only works for MakeService.
+    #[deprecated = "use `into_boxed_factory` instead"]
+    #[inline]
+    pub fn push_boxed_factory(self) -> FactoryStack<C, BoxedMakeService<F::Service, F::Error>>
+    where
+        F: MakeService + Send + Sync + 'static,
+    {
+        self.into_boxed_factory()
+    }
+
+    /// Convert the factory to a fixed type factory(Arc dyn).
+    /// Only works for MakeService.
+    #[inline]
+    pub fn into_arc_factory(self) -> FactoryStack<C, ArcMakeService<F::Service, F::Error>>
     where
         F: MakeService + Send + Sync + 'static,
     {
@@ -98,6 +136,34 @@ impl<C, F> FactoryStack<C, F> {
             config: self.config,
             inner: Arc::new(self.inner),
         }
+    }
+
+    /// Convert the factory to a fixed type factory(Arc Box dyn).
+    /// Only works for AsyncMakeService.
+    #[allow(clippy::type_complexity)]
+    #[inline]
+    pub fn into_async_arc_factory(
+        self,
+    ) -> FactoryStack<C, Arc<BoxedAsyncMakeService<F::Service, F::Error>>>
+    where
+        F: AsyncMakeService + 'static,
+        F::Service: 'static,
+    {
+        FactoryStack {
+            config: self.config,
+            inner: Arc::new(BoxedAsyncMakeService::new(self.inner)),
+        }
+    }
+
+    /// Convert the factory to a fixed type factory(Arc dyn).
+    /// Only works for MakeService.
+    #[deprecated = "use `into_arc_factory` instead"]
+    #[inline]
+    pub fn push_arc_factory(self) -> FactoryStack<C, ArcMakeService<F::Service, F::Error>>
+    where
+        F: MakeService + Send + Sync + 'static,
+    {
+        self.into_arc_factory()
     }
 
     /// Check if the stack is a factory of Service<R>.

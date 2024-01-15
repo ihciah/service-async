@@ -163,3 +163,83 @@ where
         Ok(svc.into_boxed())
     }
 }
+
+pub struct BoxedAsyncMakeService<S, E> {
+    svc: *const (),
+    type_id: TypeId,
+    vtable: AsyncMakeServiceVtable<S, E>,
+}
+
+impl<S, E> BoxedAsyncMakeService<S, E> {
+    pub fn new<AMS>(ams: AMS) -> Self
+    where
+        AMS: AsyncMakeService<Service = S, Error = E> + 'static,
+        S: 'static,
+    {
+        let type_id = ams.type_id();
+        let svc = Box::into_raw(Box::new(ams)) as *const ();
+        BoxedAsyncMakeService {
+            svc,
+            type_id,
+            vtable: AsyncMakeServiceVtable {
+                make_via_ref: make_via_ref::<AMS, S, E>,
+                drop: drop::<AMS>,
+            },
+        }
+    }
+
+    pub fn downcast_ref<T: Any>(&self) -> Option<&T> {
+        let t = TypeId::of::<T>();
+        if self.type_id == t {
+            Some(unsafe { self.downcast_ref_unchecked() })
+        } else {
+            None
+        }
+    }
+
+    /// # Safety
+    /// If you are sure the inner type is T, you can downcast it.
+    pub unsafe fn downcast_ref_unchecked<T: Any>(&self) -> &T {
+        &*(self.svc as *const T)
+    }
+}
+
+impl<S, E> Drop for BoxedAsyncMakeService<S, E> {
+    #[inline]
+    fn drop(&mut self) {
+        unsafe { (self.vtable.drop)(self.svc) };
+    }
+}
+
+impl<S, E> AsyncMakeService for BoxedAsyncMakeService<S, E> {
+    type Service = S;
+    type Error = E;
+
+    #[inline]
+    async fn make_via_ref(
+        &self,
+        old: Option<&Self::Service>,
+    ) -> Result<Self::Service, Self::Error> {
+        unsafe { (self.vtable.make_via_ref)(self.svc, old.map(|s| s as _)) }.await
+    }
+}
+
+type LocalBoxedFuture<T, E> = Pin<Box<dyn Future<Output = Result<T, E>>>>;
+
+struct AsyncMakeServiceVtable<S, E> {
+    make_via_ref: unsafe fn(raw: *const (), old: Option<*const S>) -> LocalBoxedFuture<S, E>,
+    drop: unsafe fn(raw: *const ()),
+}
+
+unsafe fn make_via_ref<AMS, S, E>(
+    svc: *const (),
+    old: Option<*const AMS::Service>,
+) -> LocalBoxedFuture<S, E>
+where
+    AMS: AsyncMakeService<Service = S, Error = E> + 'static,
+    S: 'static,
+{
+    let svc = &*svc.cast::<AMS>();
+    let fut = AMS::make_via_ref(svc, old.map(|s| unsafe { &*s }));
+    Box::pin(fut)
+}
