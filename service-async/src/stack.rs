@@ -105,7 +105,7 @@ impl<C, F> FactoryStack<C, F> {
         self,
     ) -> FactoryStack<C, BoxedAsyncMakeService<F::Service, F::Error>>
     where
-        F: AsyncMakeService + 'static,
+        F: AsyncMakeService + Send + Sync + 'static,
         F::Service: 'static,
     {
         FactoryStack {
@@ -146,7 +146,7 @@ impl<C, F> FactoryStack<C, F> {
         self,
     ) -> FactoryStack<C, Arc<BoxedAsyncMakeService<F::Service, F::Error>>>
     where
-        F: AsyncMakeService + 'static,
+        F: AsyncMakeService + Send + Sync + 'static,
         F::Service: 'static,
     {
         FactoryStack {

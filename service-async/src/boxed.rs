@@ -170,10 +170,13 @@ pub struct BoxedAsyncMakeService<S, E> {
     vtable: AsyncMakeServiceVtable<S, E>,
 }
 
+unsafe impl<S, E> Send for BoxedAsyncMakeService<S, E> {}
+unsafe impl<S, E> Sync for BoxedAsyncMakeService<S, E> {}
+
 impl<S, E> BoxedAsyncMakeService<S, E> {
     pub fn new<AMS>(ams: AMS) -> Self
     where
-        AMS: AsyncMakeService<Service = S, Error = E> + 'static,
+        AMS: AsyncMakeService<Service = S, Error = E> + Send + Sync + 'static,
         S: 'static,
     {
         let type_id = ams.type_id();
