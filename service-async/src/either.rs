@@ -2,6 +2,37 @@ use std::{error::Error, fmt::Display, future::Future, pin::Pin};
 
 use crate::{layer::FactoryLayer, AsyncMakeService, MakeService, Service};
 
+/// An Enum representing a value of one of two possible types.
+///
+/// `Either<A, B>` is particularly useful in service composition and layered architectures.
+///
+/// `Either` allows for conditional inclusion of layers in a service stack:
+///
+/// ```rust
+///
+/// impl<T> SvcC<T> {
+///    fn layer<C>() -> impl FactoryLayer<C, T, Factory = Self> {
+///       layer_fn(|_: &C, inner| SvcC { inner })
+///    }
+///
+///   fn opt_layer<C>(enabled: bool) -> Option<impl FactoryLayer<C, T, Factory = Self>> {
+///       if enabled {
+///           Some(layer_fn(|_: &C, inner| SvcC { inner }))
+///       } else {
+///           None
+///       }
+///    }
+/// }
+///
+/// let stack = FactoryStack::new(config)
+///     .push(SvcAFactory::layer())
+///     .push(SvcBFactory::layer())
+///     .push(SvcC::opt_layer(true));  // Conditionally include SvcC
+/// ```
+///
+/// This pattern enables runtime control over the service composition, making it possible to
+/// dynamically include or exclude certain layers based on configuration or runtime conditions.
+///
 #[derive(Debug, Clone)]
 pub enum Either<A, B> {
     Left(A),
