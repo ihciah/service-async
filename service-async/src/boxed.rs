@@ -6,7 +6,9 @@ use std::{
 };
 
 use crate::{AsyncMakeService, MakeService, Service};
-
+/// A type-erased wrapper for services, enabling dynamic dispatch.
+///  `BoxedService` allows for storing and using services of different types
+/// through a common interface.
 pub struct BoxedService<Request, Response, E> {
     svc: *const (),
     type_id: TypeId,
@@ -64,6 +66,10 @@ impl<Request, Response, E> Service<Request> for BoxedService<Request, Response, 
     }
 }
 
+/// Trait for converting a service into a boxed service.
+///
+/// This trait provides a method to convert any compatible service
+/// into a `BoxedService`, facilitating type erasure.
 pub trait BoxService<Request, Response, E> {
     fn into_boxed(self) -> BoxedService<Request, Response, E>;
 }
@@ -99,6 +105,10 @@ unsafe fn drop<S>(raw: *const ()) {
     std::ptr::drop_in_place(raw as *mut S);
 }
 
+// A factory for creating boxed services.
+///
+/// `BoxServiceFactory` wraps a service factory and produces `BoxedService` instances,
+/// allowing for type erasure in service creation pipelines.
 pub struct BoxServiceFactory<F, Req> {
     pub inner: F,
     _marker: PhantomData<Req>,
@@ -163,7 +173,10 @@ where
         Ok(svc.into_boxed())
     }
 }
-
+/// A type-erased wrapper for asynchronous service factories.
+///
+/// `BoxedAsyncMakeService` enables dynamic dispatch for async service factories,
+/// allowing for flexible composition of asynchronous service creation pipelines.
 pub struct BoxedAsyncMakeService<S, E> {
     svc: *const (),
     type_id: TypeId,
